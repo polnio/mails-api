@@ -1,0 +1,19 @@
+{
+  "name": "mails-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Po Co (https://github.com/polnio)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polnio/mails-api.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  }
+}
