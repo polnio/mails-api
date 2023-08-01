@@ -1,6 +1,6 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
 import search from 'query-searcher'
-import { getMailsOpts } from './schemas'
+import { getMailOpts, getMailsOpts } from './schemas'
 import Mail, { type MailProperties } from '@/models/Mail'
 import Session from '@/models/Session'
 
@@ -8,7 +8,7 @@ const mails = ((app, _opts, done) => {
   app.get('/mails/:box?', getMailsOpts, async (req, res) => {
     if (!(await Session.has(req.headers.authorization))) {
       void res.code(401).send({
-        message: 'Invalid credentials',
+        message: 'Invalid token',
       })
       return
     }
@@ -54,6 +54,30 @@ const mails = ((app, _opts, done) => {
       .code(200)
       .header('Content-Type', 'application/json')
       .send(mailsResponse)
+  })
+
+  app.get('/mails/:box/:id', getMailOpts, async (req, res) => {
+    if (!(await Session.has(req.headers.authorization))) {
+      void res.code(401).send({
+        message: 'Invalid token',
+      })
+      return
+    }
+    const mail = await Mail.get({
+      sessionToken: req.headers.authorization,
+      box: req.params.box,
+      id: req.params.id,
+      markSeen: req.query.markSeen,
+      format: req.query.format,
+    })
+    void res.code(200).header('Content-Type', 'application/json').send({
+      id: mail.id,
+      from: mail.from,
+      to: mail.to,
+      subject: mail.subject,
+      date: mail.date.toString(),
+      body: mail.body,
+    })
   })
 
   done()

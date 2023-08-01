@@ -5,11 +5,12 @@ import Session from './models/Session'
 const app = Fastify()
 
 app.setErrorHandler((err, _request, reply) => {
+  const code = err.statusCode ?? 500
   void reply
-    .code(err.statusCode ?? 500)
+    .code(code)
     .header('Content-Type', 'application/json')
     .send({
-      message: err.message,
+      message: code === 500 ? 'Internal server error' : err.message,
     })
 })
 
