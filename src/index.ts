@@ -1,10 +1,9 @@
 import Fastify from 'fastify'
+import router from './router'
 
 const app = Fastify()
 
-app.get('/', async () => {
-  return { hello: 'world' }
-})
+void app.register(router)
 
 try {
   void app.listen({ port: 8000 })
