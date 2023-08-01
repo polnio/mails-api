@@ -1,13 +1,22 @@
+import { authHeader, authUnauthorizedResponse } from '@/utils/auth'
 import { type RouteShorthandOptions } from 'fastify'
 
 const loginOpts = {
   schema: {
     body: {
       type: 'object',
-      required: ['email', 'password'],
+      required: ['email', 'password', 'imap'],
       properties: {
         email: { type: 'string' },
         password: { type: 'string' },
+        imap: {
+          type: 'object',
+          required: ['host', 'port'],
+          properties: {
+            host: { type: 'string' },
+            port: { type: 'number' },
+          },
+        },
       },
     },
     response: {
@@ -18,26 +27,14 @@ const loginOpts = {
           token: { type: 'string' },
         },
       },
-      401: {
-        type: 'object',
-        required: ['message'],
-        properties: {
-          message: { type: 'string' },
-        },
-      },
+      401: authUnauthorizedResponse,
     },
   },
 } as const satisfies RouteShorthandOptions
 
 const logoutOpts = {
   schema: {
-    headers: {
-      type: 'object',
-      required: ['Authorization'],
-      properties: {
-        Authorization: { type: 'string' },
-      },
-    },
+    headers: authHeader,
     response: {
       204: {},
     },
