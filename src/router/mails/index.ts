@@ -1,6 +1,7 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
+import search from 'query-searcher'
 import { getMailsOpts } from './schemas'
-import Mail from '@/models/Mail'
+import Mail, { type MailProperties } from '@/models/Mail'
 import Session from '@/models/Session'
 
 const mails = ((app, _opts, done) => {
@@ -11,31 +12,89 @@ const mails = ((app, _opts, done) => {
       })
       return
     }
-    const mailsPromise = Mail.getAll({
+
+    const mails = await Mail.getAll({
       sessionToken: req.headers.authorization,
       box: req.params.box,
-      limit: req.query.limit,
     })
-    await mailsPromise
-      .then((mails) => {
-        const mailsResponse = mails.map((mail) => ({
-          id: mail.id,
-          from: mail.from,
-          to: mail.to,
-          subject: mail.subject,
-          date: mail.date.toString(),
-        }))
-        void res
-          .code(200)
-          .header('Content-Type', 'application/json')
-          .send(mailsResponse)
-      })
-      .catch((err) => {
-        void res.code(500).send(err)
-      })
+
+    const filteredMails = search(
+      req.query.query ?? '',
+      mails.map((mail) => mail.getProperties()),
+    )
+
+    const sortedMails = filteredMails.sort((a, b) =>
+      sortMails(a, b, req.query.sortBy ?? 'id'),
+    )
+    if (req.query.sort === 'desc') {
+      sortedMails.reverse()
+    }
+
+    const page = req.query.page ?? 1
+    const perPage =
+      (req.query.perPage === 'infinity' ? Infinity : req.query.perPage) ?? 10
+    const paginatedMails = (() => {
+      if (perPage > sortedMails.length) {
+        if (page > 1) {
+          return []
+        }
+        return sortedMails
+      }
+      return sortedMails.slice((page - 1) * perPage, page * perPage)
+    })()
+
+    const mailsResponse = paginatedMails.map((mail) => ({
+      id: mail.id,
+      from: mail.from,
+      to: mail.to,
+      subject: mail.subject,
+      date: mail.date.toString(),
+    }))
+    void res
+      .code(200)
+      .header('Content-Type', 'application/json')
+      .send(mailsResponse)
   })
 
   done()
 }) satisfies FastifyPluginCallbackJsonSchemaToTs
 
 export default mails
+
+function sortMails(
+  a: MailProperties,
+  b: MailProperties,
+  sortBy: keyof MailProperties,
+): number {
+  const left = a[sortBy]
+  const right = b[sortBy]
+  if (left instanceof Date) {
+    if (!(right instanceof Date)) {
+      // ? Never
+      throw new Error()
+    }
+    return left.getTime() - right.getTime()
+  }
+  if (typeof left === 'string') {
+    if (typeof right !== 'string') {
+      // ? Never
+      throw new Error()
+    }
+    return left.localeCompare(right)
+  }
+  if (typeof left === 'boolean') {
+    if (typeof right !== 'boolean') {
+      // ? Never
+      throw new Error()
+    }
+    return Number(left) - Number(right)
+  }
+  if (typeof left === 'number') {
+    if (typeof right !== 'number') {
+      // ? Never
+      throw new Error()
+    }
+    return left - right
+  }
+  throw new Error('Incompatible type')
+}

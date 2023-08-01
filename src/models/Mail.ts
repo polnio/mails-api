@@ -14,7 +14,7 @@ const mailHeaderSchema = z.object({
   date: arrayToStringSchema.transform((date) => new Date(date)),
 })
 
-interface MailConstructorParams {
+type MailConstructorParams = {
   id: number
   from: string
   to: string[]
@@ -23,10 +23,27 @@ interface MailConstructorParams {
   body: string
 }
 
-interface GetAllMailParams {
+type GetAllMailParams = {
   sessionToken: string
   box?: string
-  limit?: number
+}
+
+export type MailProperties = {
+  id: number
+  from: string
+  to: string[]
+  subject: string
+  date: Date
+  body: string
+}
+
+export type MailJson = {
+  id: number
+  from: string
+  to: string[]
+  subject: string
+  date: string
+  body: string
 }
 
 class Mail {
@@ -63,14 +80,11 @@ class Mail {
         if (err !== undefined) {
           reject(err)
         }
-        const f = session.imap.seq.fetch(
-          params.limit !== undefined ? `1:${params.limit}` : `1:*`,
-          {
-            bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
-            markSeen: false,
-            struct: true,
-          },
-        )
+        const f = session.imap.seq.fetch('1:*', {
+          bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
+          markSeen: false,
+          struct: true,
+        })
         const mails: Mail[] = []
         f.on('message', (msg, id) => {
           msg.on('body', (stream) => {
@@ -106,6 +120,28 @@ class Mail {
         })
       })
     })
+  }
+
+  public getProperties(): MailProperties {
+    return {
+      id: this.id,
+      from: this.from,
+      to: this.to,
+      subject: this.subject,
+      date: this.date,
+      body: this.body,
+    }
+  }
+
+  public toJson(): MailJson {
+    return {
+      id: this.id,
+      from: this.from,
+      to: this.to,
+      subject: this.subject,
+      date: this.date.toString(),
+      body: this.body,
+    }
   }
 }
 

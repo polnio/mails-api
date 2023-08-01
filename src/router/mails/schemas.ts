@@ -13,9 +13,17 @@ const getMailsOpts = {
     querystring: {
       type: 'object',
       properties: {
-        limit: { type: 'number' },
-        page: { type: 'number' },
-        perPage: { type: 'number' },
+        flags: { type: 'array', items: { type: 'string' } },
+        sort: { type: 'string', enum: ['asc', 'desc'] },
+        sortBy: {
+          type: 'string',
+          enum: ['id', 'from', 'to', 'subject', 'date'],
+        },
+        query: { type: 'string' },
+        page: { type: 'integer', minimum: 1 },
+        perPage: {
+          anyOf: [{ type: 'integer', minimum: 1 }, { const: 'infinity' }],
+        },
       },
     },
     response: {
