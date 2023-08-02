@@ -34,6 +34,7 @@ type MailConstructorParams = {
 type GetAllMailParams = {
   sessionToken: string
   box?: string
+  flags?: string[]
 }
 
 type GetMailParams = {
@@ -100,55 +101,60 @@ class Mail {
         if (err !== undefined) {
           reject(err)
         }
-        const f = session.imap.seq.fetch('1:*', {
-          bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
-          markSeen: false,
-          // struct: true,
-        })
-        const mails: Mail[] = []
-        f.on('message', (msg) => {
-          let headers: z.infer<typeof mailHeaderSchema> | undefined
-          let attributes: { uid: number; flags: string[] } | undefined
-          msg.on('body', (stream) => {
-            let buffer = ''
-            stream.on('data', (chunk: Buffer) => {
-              buffer += chunk.toString('utf8')
+
+        session.imap.search(params.flags ?? ['ALL'], (_, uids) => {
+          const f = session.imap.fetch(uids, {
+            bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
+            markSeen: false,
+            // struct: true,
+          })
+          const mails: Mail[] = []
+          f.on('message', (msg) => {
+            let headers: z.infer<typeof mailHeaderSchema> | undefined
+            let attributes: { uid: number; flags: string[] } | undefined
+            msg.on('body', (stream) => {
+              let buffer = ''
+              stream.on('data', (chunk: Buffer) => {
+                buffer += chunk.toString('utf8')
+              })
+              stream.once('end', () => {
+                const parsedHeader = mailHeaderSchema.safeParse(
+                  parseHeader(buffer),
+                )
+                if (parsedHeader.success) {
+                  headers = parsedHeader.data
+                }
+              })
             })
-            stream.once('end', () => {
-              const parsedHeader = mailHeaderSchema.safeParse(
-                parseHeader(buffer),
-              )
-              if (parsedHeader.success) {
-                headers = parsedHeader.data
+
+            msg.on('attributes', (attrs) => {
+              attributes = attrs
+            })
+
+            msg.once('end', () => {
+              if (headers === undefined || attributes === undefined) {
+                return
               }
+              const mail = new Mail({
+                id: attributes.uid,
+                from: headers.from,
+                to: headers.to
+                  .flatMap((t) => t.split(','))
+                  .map((t) => t.trim()),
+                subject: headers.subject,
+                date: headers.date,
+                body: '',
+                flags: attributes.flags,
+              })
+              mails.push(mail)
             })
           })
-
-          msg.on('attributes', (attrs) => {
-            attributes = attrs
+          f.once('error', (err) => {
+            reject(err)
           })
-
-          msg.once('end', () => {
-            if (headers === undefined || attributes === undefined) {
-              return
-            }
-            const mail = new Mail({
-              id: attributes.uid,
-              from: headers.from,
-              to: headers.to.flatMap((t) => t.split(',')).map((t) => t.trim()),
-              subject: headers.subject,
-              date: headers.date,
-              body: '',
-              flags: attributes.flags,
-            })
-            mails.push(mail)
+          f.once('end', () => {
+            resolve(mails)
           })
-        })
-        f.once('error', (err) => {
-          reject(err)
-        })
-        f.once('end', () => {
-          resolve(mails)
         })
       })
     })

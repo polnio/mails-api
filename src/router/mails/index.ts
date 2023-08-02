@@ -16,6 +16,7 @@ const mails = ((app, _opts, done) => {
     const mails = await Mail.getAll({
       sessionToken: req.headers.authorization,
       box: req.params.box,
+      flags: req.query.flags,
     })
 
     const filteredMails = search(
