@@ -6,6 +6,9 @@ const app = Fastify()
 
 app.setErrorHandler((err, _request, reply) => {
   const code = err.statusCode ?? 500
+  if (code === 500) {
+    console.error(err)
+  }
   void reply
     .code(code)
     .header('Content-Type', 'application/json')

@@ -49,6 +49,7 @@ const mails = ((app, _opts, done) => {
       to: mail.to,
       subject: mail.subject,
       date: mail.date.toString(),
+      flags: mail.flags,
     }))
     void res
       .code(200)
@@ -77,6 +78,7 @@ const mails = ((app, _opts, done) => {
       subject: mail.subject,
       date: mail.date.toString(),
       body: mail.body,
+      flags: mail.flags,
     })
   })
 

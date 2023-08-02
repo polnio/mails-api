@@ -1,5 +1,4 @@
 import { parseHeader } from 'imap'
-// import util from 'util'
 import { MailParser } from 'mailparser'
 import { z } from 'zod'
 import Session from './Session'
@@ -29,6 +28,7 @@ type MailConstructorParams = {
   subject: string
   date: Date
   body: string
+  flags: string[]
 }
 
 type GetAllMailParams = {
@@ -51,6 +51,7 @@ export type MailProperties = {
   subject: string
   date: Date
   body: string
+  flags: string[]
 }
 
 export type MailJson = {
@@ -69,6 +70,7 @@ class Mail {
   public readonly subject: string
   public readonly date: Date
   public readonly body: string
+  public readonly flags: string[]
 
   private constructor({
     id,
@@ -77,6 +79,7 @@ class Mail {
     subject,
     date,
     body,
+    flags,
   }: MailConstructorParams) {
     this.id = id
     this.from = from
@@ -84,6 +87,7 @@ class Mail {
     this.subject = subject
     this.date = date
     this.body = body
+    this.flags = flags
   }
 
   public static async getAll(params: GetAllMailParams): Promise<Mail[]> {
@@ -99,10 +103,12 @@ class Mail {
         const f = session.imap.seq.fetch('1:*', {
           bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
           markSeen: false,
-          struct: true,
+          // struct: true,
         })
         const mails: Mail[] = []
-        f.on('message', (msg, id) => {
+        f.on('message', (msg) => {
+          let headers: z.infer<typeof mailHeaderSchema> | undefined
+          let attributes: { uid: number; flags: string[] } | undefined
           msg.on('body', (stream) => {
             let buffer = ''
             stream.on('data', (chunk: Buffer) => {
@@ -113,19 +119,29 @@ class Mail {
                 parseHeader(buffer),
               )
               if (parsedHeader.success) {
-                const mail = new Mail({
-                  id,
-                  from: parsedHeader.data.from,
-                  to: parsedHeader.data.to
-                    .flatMap((t) => t.split(','))
-                    .map((t) => t.trim()),
-                  subject: parsedHeader.data.subject,
-                  date: parsedHeader.data.date,
-                  body: buffer,
-                })
-                mails.push(mail)
+                headers = parsedHeader.data
               }
             })
+          })
+
+          msg.on('attributes', (attrs) => {
+            attributes = attrs
+          })
+
+          msg.once('end', () => {
+            if (headers === undefined || attributes === undefined) {
+              return
+            }
+            const mail = new Mail({
+              id: attributes.uid,
+              from: headers.from,
+              to: headers.to.flatMap((t) => t.split(',')).map((t) => t.trim()),
+              subject: headers.subject,
+              date: headers.date,
+              body: '',
+              flags: attributes.flags,
+            })
+            mails.push(mail)
           })
         })
         f.once('error', (err) => {
@@ -149,7 +165,7 @@ class Mail {
           reject(err)
           return
         }
-        const f = session.imap.seq.fetch(params.id.toString(), {
+        const f = session.imap.fetch([params.id], {
           // bodies: ['HEADER.FIELDS (FROM TO SUBJECT DATE)', 'TEXT'],
           bodies: '',
           markSeen: params.markSeen ?? false,
@@ -158,110 +174,102 @@ class Mail {
         f.on('message', (msg) => {
           const mailParser = new MailParser()
 
-          let body: string
-          let headers: z.infer<typeof mailHeaderSchema>
-          msg.on('body', (stream, info) => {
-            stream.pipe(mailParser)
+          let body: string | undefined
+          let headers: z.infer<typeof mailHeaderSchema> | undefined
+          let attributes: { uid: number; flags: string[] } | undefined
 
-            mailParser.on('headers', (headersData) => {
-              // console.log(util.inspect(headersData, false, 22, true))
-              const from = headersData.get('from')
-              const to = headersData.get('to')
-              const subject = headersData.get('subject')
-              const date = headersData.get('date')
+          mailParser.on('headers', (headersData) => {
+            const from = headersData.get('from')
+            const to = headersData.get('to')
+            const subject = headersData.get('subject')
+            const date = headersData.get('date')
 
-              if (
-                from === undefined ||
-                to === undefined ||
-                subject === undefined ||
-                date === undefined
-              ) {
-                reject(new Error('Invalid header'))
-                return
-              }
+            if (
+              from === undefined ||
+              to === undefined ||
+              subject === undefined ||
+              date === undefined
+            ) {
+              reject(new Error('Invalid header'))
+              return
+            }
 
-              headers = {
-                from: parseHeaderValueToString(from),
-                to: parseHeaderValueToArray(to),
-                subject: parseHeaderValueToString(subject),
-                date: parseHeaderValueToDate(date),
-              }
-            })
-
-            mailParser.on(
-              'data',
-              (
-                data:
-                  | {
-                      type: 'text'
-                      text: string
-                      html?: string | undefined
-                      textAsHtml: string
-                    }
-                  | {
-                      type: 'attachment'
-                      filename: string
-                      content: Stream
-                      release: () => void
-                    },
-              ) => {
-                console.log(data)
-                if (data.type === 'text') {
-                  if (params.format === 'html') {
-                    body = data.html ?? data.textAsHtml
-                  } else {
-                    body = data.text
-                  }
-                }
-                if (data.type === 'attachment') {
-                  data.release()
-                }
-              },
-            )
-
-            mailParser.on('end', () => {
-              // console.log(body)
-              resolve(
-                new Mail({
-                  id: params.id,
-                  from: headers.from,
-                  to: headers.to,
-                  subject: headers.subject,
-                  date: headers.date,
-                  body,
-                }),
-              )
-            })
-            /* stream.pipe(process.stdout)
-            let buffer = ''
-            stream.on('data', (chunk: Buffer) => {
-              buffer += chunk.toString('utf8')
-            })
-            stream.once('end', () => {
-              if (info.which === 'TEXT') {
-                body = buffer
-              } else {
-                const parsedHeader = mailHeaderSchema.safeParse(
-                  parseHeader(buffer),
-                )
-                if (parsedHeader.success) {
-                  headers = parsedHeader.data
-                }
-              }
-            }) */
+            headers = {
+              from: parseHeaderValueToString(from),
+              to: parseHeaderValueToArray(to),
+              subject: parseHeaderValueToString(subject),
+              date: parseHeaderValueToDate(date),
+            }
           })
-          /* msg.once('end', () => {
+
+          mailParser.on(
+            'data',
+            (
+              data:
+                | {
+                    type: 'text'
+                    text: string
+                    html?: string | undefined
+                    textAsHtml: string
+                  }
+                | {
+                    type: 'attachment'
+                    filename: string
+                    content: Stream
+                    release: () => void
+                  },
+            ) => {
+              if (data.type === 'text') {
+                if (params.format === 'html') {
+                  body = data.html ?? data.textAsHtml
+                } else {
+                  body = data.text
+                }
+              }
+              if (data.type === 'attachment') {
+                data.release()
+              }
+            },
+          )
+
+          msg.on('body', (stream) => {
+            stream.pipe(mailParser)
+          })
+
+          msg.on('attributes', (attrs) => {
+            attributes = attrs
+          })
+
+          const streamsPromises = [msg, mailParser].map(
+            async (stream) =>
+              await new Promise((resolve) => {
+                stream.once('end', () => {
+                  resolve(stream)
+                })
+              }),
+          )
+
+          void Promise.all(streamsPromises).then(() => {
+            if (
+              headers === undefined ||
+              attributes === undefined ||
+              body === undefined
+            ) {
+              reject(new Error('Invalid header'))
+              return
+            }
             resolve(
               new Mail({
-                id: params.id,
+                id: attributes.uid,
                 from: headers.from,
                 to: headers.to,
                 subject: headers.subject,
                 date: headers.date,
                 body,
+                flags: attributes.flags,
               }),
             )
-          }) */
+          })
         })
       })
     })
@@ -275,6 +283,7 @@ class Mail {
       subject: this.subject,
       date: this.date,
       body: this.body,
+      flags: this.flags,
     }
   }
 

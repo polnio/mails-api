@@ -31,13 +31,14 @@ const getMailsOpts = {
         type: 'array',
         items: {
           type: 'object',
-          required: ['id', 'from', 'to', 'subject', 'date'],
+          required: ['id', 'from', 'to', 'subject', 'date', 'flags'],
           properties: {
             id: { type: 'number' },
             from: { type: 'string' },
             to: { type: 'array', items: { type: 'string' } },
             subject: { type: 'string' },
             date: { type: 'string' },
+            flags: { type: 'array', items: { type: 'string' } },
           },
         },
       },
@@ -70,7 +71,7 @@ const getMailOpts = {
     response: {
       200: {
         type: 'object',
-        required: ['id', 'from', 'to', 'subject', 'date', 'body'],
+        required: ['id', 'from', 'to', 'subject', 'date', 'body', 'flags'],
         properties: {
           id: { type: 'number' },
           from: { type: 'string' },
@@ -78,6 +79,7 @@ const getMailOpts = {
           subject: { type: 'string' },
           date: { type: 'string' },
           body: { type: 'string' },
+          flags: { type: 'array', items: { type: 'string' } },
         },
       },
       401: authUnauthorizedResponse,
