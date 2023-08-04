@@ -50,6 +50,15 @@ type GetMailParams = {
   format?: 'html' | 'text'
 }
 
+type PostMailParams = {
+  sessionToken: string
+  from: string
+  to: string[]
+  subject: string
+  body: string
+  format?: 'html' | 'text'
+}
+
 type UpdateArray<T> =
   | T[]
   | {
@@ -315,6 +324,29 @@ class Mail {
         })
       })
     })
+  }
+
+  public static async create(params: PostMailParams): Promise<void> {
+    const session = await Session.get(params.sessionToken)
+    if (session === undefined) {
+      throw new Error('Invalid token')
+    }
+    console.log(params)
+    if (params.format === 'html') {
+      await session.smtp.sendMail({
+        from: params.from,
+        to: params.to,
+        subject: params.subject,
+        html: params.body,
+      })
+    } else {
+      await session.smtp.sendMail({
+        from: params.from,
+        to: params.to,
+        subject: params.subject,
+        text: params.body,
+      })
+    }
   }
 
   public static async update(params: UpdateMailParams): Promise<Mail> {

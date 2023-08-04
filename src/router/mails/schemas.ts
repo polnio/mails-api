@@ -86,6 +86,42 @@ const getMailOpts = {
   },
 } as const satisfies RouteShorthandOptions
 
+const postMailOpts = {
+  schema: {
+    headers: authHeader,
+    body: {
+      type: 'object',
+      required: ['from', 'to', 'subject', 'body'],
+      properties: {
+        from: { type: 'string' },
+        to: { type: 'array', items: { type: 'string' } },
+        subject: { type: 'string' },
+        body: { type: 'string' },
+        format: {
+          enum: ['html', 'text'],
+        },
+      },
+    },
+    response: {
+      /* 201: {
+        type: 'object',
+        required: ['id', 'from', 'to', 'subject', 'date', 'body', 'flags'],
+        properties: {
+          id: { type: 'number' },
+          from: { type: 'string' },
+          to: { type: 'array', items: { type: 'string' } },
+          subject: { type: 'string' },
+          date: { type: 'string' },
+          body: { type: 'string' },
+          flags: { type: 'array', items: { type: 'string' } },
+        },
+      }, */
+      204: {},
+      401: authUnauthorizedResponse,
+    },
+  },
+} as const satisfies RouteShorthandOptions
+
 const patchMailOpts = {
   schema: {
     headers: authHeader,
@@ -141,4 +177,4 @@ const patchMailOpts = {
   },
 } as const satisfies RouteShorthandOptions
 
-export { getMailsOpts, getMailOpts, patchMailOpts }
+export { getMailsOpts, getMailOpts, patchMailOpts, postMailOpts }

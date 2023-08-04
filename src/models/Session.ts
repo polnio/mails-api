@@ -1,16 +1,23 @@
 import Imap from 'imap'
+import nodemailer, { type Transporter } from 'nodemailer'
+import type SMTPTransport from 'nodemailer/lib/smtp-transport'
 import { v4 as uuid } from 'uuid'
 
 interface SessionConstructorParams {
   token: string
   email: string
   imap: Imap
+  smtp: Transporter
 }
 
 interface Credentials {
   email: string
   password: string
   imap: {
+    host: string
+    port: number
+  }
+  smtp: {
     host: string
     port: number
   }
@@ -22,12 +29,14 @@ class Session {
   private readonly email: string
 
   public readonly imap: Imap
+  public readonly smtp: Transporter<SMTPTransport.SentMessageInfo>
   public readonly token: string
 
-  private constructor({ token, email, imap }: SessionConstructorParams) {
+  private constructor({ token, email, imap, smtp }: SessionConstructorParams) {
     this.token = token
     this.email = email
     this.imap = imap
+    this.smtp = smtp
   }
 
   public static async get(token: string): Promise<Session | undefined> {
@@ -67,14 +76,38 @@ class Session {
       })
       imap.connect()
     })
+    const smtpPromise = new Promise<Transporter<SMTPTransport.SentMessageInfo>>(
+      (resolve, reject) => {
+        const smtp = nodemailer.createTransport({
+          host: credentials.smtp.host,
+          port: credentials.smtp.port,
+          secure: true,
+          auth: {
+            user: credentials.email,
+            pass: credentials.password,
+          },
+        })
+        smtp.verify((error) => {
+          if (error !== null) {
+            reject(error)
+          } else {
+            resolve(smtp)
+          }
+        })
+      },
+    )
+
+    const [imap, smtp] = await Promise.all([imapPromise, smtpPromise])
+
     do {
       token = uuid()
     } while (Session.instances.some((connection) => connection.token === token))
-    const [imap] = await Promise.all([imapPromise])
+
     const session = new Session({
       token,
       email: credentials.email,
       imap,
+      smtp,
     })
     Session.instances.push(session)
     return session

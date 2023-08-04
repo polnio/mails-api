@@ -1,6 +1,11 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
 import transpile from 'imap-criteria-transpiler'
-import { getMailOpts, getMailsOpts, patchMailOpts } from './schemas'
+import {
+  getMailOpts,
+  getMailsOpts,
+  patchMailOpts,
+  postMailOpts,
+} from './schemas'
 import Mail, { type MailProperties } from '@/models/Mail'
 import Session from '@/models/Session'
 
@@ -73,8 +78,22 @@ const mails = ((app, _opts, done) => {
     })
   })
 
-  app.post('/mails/:box', getMailOpts, async (req, res) => {
-    throw new Error('Not implemented')
+  app.post('/mails', postMailOpts, async (req, res) => {
+    if (!(await Session.has(req.headers.authorization))) {
+      void res.code(401).send({
+        message: 'Invalid token',
+      })
+      return
+    }
+    await Mail.create({
+      sessionToken: req.headers.authorization,
+      from: req.body.from,
+      to: req.body.to,
+      subject: req.body.subject,
+      body: req.body.body,
+      format: req.body.format,
+    })
+    void res.code(204).send()
   })
 
   app.patch('/mails/:box/:id', patchMailOpts, async (req, res) => {

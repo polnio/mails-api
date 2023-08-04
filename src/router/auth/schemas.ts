@@ -5,11 +5,19 @@ const loginOpts = {
   schema: {
     body: {
       type: 'object',
-      required: ['email', 'password', 'imap'],
+      required: ['email', 'password', 'imap', 'smtp'],
       properties: {
         email: { type: 'string' },
         password: { type: 'string' },
         imap: {
+          type: 'object',
+          required: ['host', 'port'],
+          properties: {
+            host: { type: 'string' },
+            port: { type: 'number' },
+          },
+        },
+        smtp: {
           type: 'object',
           required: ['host', 'port'],
           properties: {
