@@ -1,5 +1,5 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
-import search from 'query-searcher'
+import transpile from 'imap-criteria-transpiler'
 import { getMailOpts, getMailsOpts } from './schemas'
 import Mail, { type MailProperties } from '@/models/Mail'
 import Session from '@/models/Session'
@@ -13,27 +13,28 @@ const mails = ((app, _opts, done) => {
       return
     }
 
+    const perPage =
+      (req.query.perPage === 'infinity' ? Infinity : req.query.perPage) ??
+      Infinity
+
+    const query = transpile(req.query.query ?? '')
+
     const mails = await Mail.getAll({
       sessionToken: req.headers.authorization,
       box: req.params.box,
-      flags: req.query.flags,
+      criteria: query,
+      page: req.query.page,
+      perPage,
     })
 
-    const filteredMails = search(
-      req.query.query ?? '',
-      mails.map((mail) => mail.getProperties()),
-    )
-
-    const sortedMails = filteredMails.sort((a, b) =>
+    const sortedMails = mails.sort((a, b) =>
       sortMails(a, b, req.query.sortBy ?? 'id'),
     )
     if (req.query.sort === 'desc') {
       sortedMails.reverse()
     }
 
-    const page = req.query.page ?? 1
-    const perPage =
-      (req.query.perPage === 'infinity' ? Infinity : req.query.perPage) ?? 10
+    /* const page = req.query.page ?? 1
     const paginatedMails = (() => {
       if (perPage > sortedMails.length) {
         if (page > 1) {
@@ -42,9 +43,9 @@ const mails = ((app, _opts, done) => {
         return sortedMails
       }
       return sortedMails.slice((page - 1) * perPage, page * perPage)
-    })()
+    })() */
 
-    const mailsResponse = paginatedMails.map((mail) => ({
+    const mailsResponse = sortedMails.map((mail) => ({
       id: mail.id,
       from: mail.from,
       to: mail.to,

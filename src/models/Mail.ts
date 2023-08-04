@@ -12,7 +12,8 @@ import {
 const arrayToStringSchema = z
   .array(z.string())
   .min(1)
-  .transform((v) => v[0])
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  .transform((v) => v[0]!)
 
 const mailHeaderSchema = z.object({
   from: arrayToStringSchema,
@@ -31,10 +32,14 @@ type MailConstructorParams = {
   flags: string[]
 }
 
+type Criteria = Array<string | Criteria>
+
 type GetAllMailParams = {
   sessionToken: string
   box?: string
-  flags?: string[]
+  page?: number
+  perPage?: number
+  criteria?: Criteria
 }
 
 type GetMailParams = {
@@ -102,8 +107,14 @@ class Mail {
           reject(err)
         }
 
-        session.imap.search(params.flags ?? ['ALL'], (_, uids) => {
-          const f = session.imap.fetch(uids, {
+        session.imap.search(params.criteria ?? ['ALL'], (_, uids) => {
+          const perPage = params.perPage ?? Infinity
+          const page = params.page ?? 1
+          const filteredUids =
+            uids.length > perPage
+              ? uids.slice((page - 1) * perPage, page * perPage)
+              : uids
+          const f = session.imap.fetch(filteredUids, {
             bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
             markSeen: false,
             // struct: true,

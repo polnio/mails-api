@@ -18,7 +18,7 @@ app.setErrorHandler((err, _request, reply) => {
 })
 
 app.setNotFoundHandler((req, reply) => {
-  const pathname = req.url.split('?')[0]
+  const pathname = req.url.split('?')[0] ?? ''
   void reply
     .code(404)
     .header('Content-Type', 'application/json')

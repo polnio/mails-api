@@ -13,7 +13,6 @@ const getMailsOpts = {
     querystring: {
       type: 'object',
       properties: {
-        flags: { type: 'array', items: { type: 'string' } },
         sort: { type: 'string', enum: ['asc', 'desc'] },
         sortBy: {
           type: 'string',

@@ -52,7 +52,7 @@ function parseHeaderValueToDate(header: HeaderValue): Date {
     return new Date(header)
   }
   if (Array.isArray(header)) {
-    return new Date(header[0])
+    return new Date(header[0] ?? '')
   }
   if ('text' in header) {
     return new Date(header.text)
