@@ -1,11 +1,11 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
-import Connection from '@/models/Connection'
+import Session from '@/models/Session'
 import { loginOpts, logoutOpts } from './schemas'
 
 const auth = ((app, _opts, done) => {
   app.post('/login', loginOpts, (req, res) => {
     const credentials = req.body
-    Connection.connect(credentials)
+    Session.connect(credentials)
       .then((connection) => {
         void res.code(200).header('Content-Type', 'application/json').send({
           token: connection.token,
@@ -19,7 +19,7 @@ const auth = ((app, _opts, done) => {
   })
 
   app.post('/logout', logoutOpts, (req, res) => {
-    void Connection.destroy(req.headers.authorization)
+    void Session.destroy(req.headers.authorization)
     void res.code(204).send()
   })
 

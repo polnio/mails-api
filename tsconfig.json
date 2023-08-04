@@ -6,7 +6,9 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
+    "types": ["@total-typescript/ts-reset"],
     "paths": {
       "@/*": ["./src/*"]
     }
