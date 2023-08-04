@@ -86,4 +86,59 @@ const getMailOpts = {
   },
 } as const satisfies RouteShorthandOptions
 
-export { getMailsOpts, getMailOpts }
+const patchMailOpts = {
+  schema: {
+    headers: authHeader,
+    params: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        box: { type: 'string' },
+        id: { type: 'number' },
+      },
+    },
+    body: {
+      type: 'object',
+      properties: {
+        flags: { type: 'array', items: { type: 'string' } },
+        keywords: { type: 'array', items: { type: 'string' } },
+        // box: { type: 'string' },
+        box: {
+          type: 'object',
+          required: ['location', 'action'],
+          properties: {
+            location: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+            },
+            action: {
+              enum: ['copy', 'move'],
+            },
+          },
+        },
+
+        removeAllFlags: { type: 'boolean' },
+        removeAllKeywords: { type: 'boolean' },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          from: { type: 'string' },
+          to: { type: 'array', items: { type: 'string' } },
+          subject: { type: 'string' },
+          date: { type: 'string' },
+          body: { type: 'string' },
+          flags: { type: 'array', items: { type: 'string' } },
+        },
+      },
+      401: authUnauthorizedResponse,
+    },
+  },
+} as const satisfies RouteShorthandOptions
+
+export { getMailsOpts, getMailOpts, patchMailOpts }

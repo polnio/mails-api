@@ -50,6 +50,26 @@ type GetMailParams = {
   format?: 'html' | 'text'
 }
 
+type UpdateArray<T> =
+  | T[]
+  | {
+      add?: T[]
+      remove?: T[]
+    }
+
+type UpdateMailParams = {
+  sessionToken: string
+  box?: string
+  id: number
+
+  newBox?: {
+    location: string | string[]
+    action: 'copy' | 'move'
+  }
+  flags?: UpdateArray<string>
+  keywords?: UpdateArray<string>
+}
+
 export type MailProperties = {
   id: number
   from: string
@@ -286,8 +306,149 @@ class Mail {
                 flags: attributes.flags,
               }),
             )
+            session.imap.closeBox((err) => {
+              if (err !== undefined) {
+                reject(err)
+              }
+            })
           })
         })
+      })
+    })
+  }
+
+  public static async update(params: UpdateMailParams): Promise<Mail> {
+    const session = await Session.get(params.sessionToken)
+    if (session === undefined) {
+      throw new Error('Invalid token')
+    }
+    const mail = await Mail.get({
+      sessionToken: params.sessionToken,
+      box: params.box ?? 'INBOX',
+      id: params.id,
+    })
+
+    return await new Promise((resolve, reject) => {
+      session.imap.openBox(params.box ?? 'INBOX', false, (err) => {
+        if (err !== undefined) {
+          reject(err)
+          return
+        }
+        let flags = mail.flags
+        if (params.flags !== undefined) {
+          if (Array.isArray(params.flags)) {
+            flags = params.flags
+            if (flags.length === 0) {
+              console.log(params.id, mail.flags)
+              session.imap.delFlags(params.id, mail.flags, (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              })
+            } else {
+              session.imap.setFlags(params.id, params.flags, (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              })
+            }
+          } else {
+            if (params.flags.add !== undefined) {
+              const parsedFlags = params.flags.add.map(
+                (f) => `\\${capitalize(f)}`,
+              )
+              flags = Array.from(new Set(flags.concat(parsedFlags)))
+              session.imap.addFlags(params.id, parsedFlags, (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              })
+            }
+            if (params.flags.remove !== undefined) {
+              flags = flags.filter((f) =>
+                (params.flags as { add: string[] }).add.includes(f),
+              )
+              session.imap.delFlags(params.id, params.flags.remove, (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              })
+            }
+          }
+        }
+        if (params.keywords !== undefined) {
+          if (Array.isArray(params.keywords)) {
+            session.imap.setKeywords(params.id, params.keywords, (err) => {
+              if (err !== undefined) {
+                reject(err)
+              }
+            })
+          } else {
+            if (params.keywords.add !== undefined) {
+              session.imap.addKeywords(
+                params.id,
+                params.keywords.add,
+                (err) => {
+                  if (err !== undefined) {
+                    reject(err)
+                  }
+                },
+              )
+            }
+            if (params.keywords.remove !== undefined) {
+              session.imap.delKeywords(
+                params.id,
+                params.keywords.remove,
+                (err) => {
+                  if (err !== undefined) {
+                    reject(err)
+                  }
+                },
+              )
+            }
+          }
+        }
+        if (params.newBox !== undefined) {
+          const locations =
+            typeof params.newBox.location === 'string'
+              ? [params.newBox.location]
+              : params.newBox.location
+          switch (params.newBox.action) {
+            case 'copy':
+              for (const location of locations) {
+                session.imap.copy(params.id, location, (err) => {
+                  if (err !== undefined) {
+                    reject(err)
+                  }
+                })
+              }
+              break
+
+            case 'move':
+              if (Array.isArray(params.newBox.location)) {
+                throw new Error(
+                  'Mail can be move at only one location at a time',
+                )
+              }
+              session.imap.move(params.id, params.newBox.location, (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              })
+              break
+          }
+        }
+        resolve(
+          new Mail({
+            id: mail.id,
+            from: mail.from,
+            to: mail.to,
+            subject: mail.subject,
+            date: mail.date,
+            body: mail.body,
+            flags,
+          }),
+        )
       })
     })
   }
@@ -314,6 +475,10 @@ class Mail {
       body: this.body,
     }
   }
+}
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
 export default Mail

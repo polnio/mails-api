@@ -1,6 +1,6 @@
 import { type FastifyPluginCallbackJsonSchemaToTs } from '@fastify/type-provider-json-schema-to-ts'
 import transpile from 'imap-criteria-transpiler'
-import { getMailOpts, getMailsOpts } from './schemas'
+import { getMailOpts, getMailsOpts, patchMailOpts } from './schemas'
 import Mail, { type MailProperties } from '@/models/Mail'
 import Session from '@/models/Session'
 
@@ -33,17 +33,6 @@ const mails = ((app, _opts, done) => {
     if (req.query.sort === 'desc') {
       sortedMails.reverse()
     }
-
-    /* const page = req.query.page ?? 1
-    const paginatedMails = (() => {
-      if (perPage > sortedMails.length) {
-        if (page > 1) {
-          return []
-        }
-        return sortedMails
-      }
-      return sortedMails.slice((page - 1) * perPage, page * perPage)
-    })() */
 
     const mailsResponse = sortedMails.map((mail) => ({
       id: mail.id,
@@ -81,6 +70,47 @@ const mails = ((app, _opts, done) => {
       date: mail.date.toString(),
       body: mail.body,
       flags: mail.flags,
+    })
+  })
+
+  app.post('/mails/:box', getMailOpts, async (req, res) => {
+    throw new Error('Not implemented')
+  })
+
+  app.patch('/mails/:box/:id', patchMailOpts, async (req, res) => {
+    if (!(await Session.has(req.headers.authorization))) {
+      void res.code(401).send({
+        message: 'Invalid token',
+      })
+      return
+    }
+    const newMail = await Mail.update({
+      sessionToken: req.headers.authorization,
+      box: req.params.box,
+      id: req.params.id,
+      flags:
+        req.body.removeAllFlags === true
+          ? req.body.flags ?? []
+          : {
+              add: req.body.flags,
+            },
+      keywords:
+        req.body.removeAllKeywords === true
+          ? req.body.keywords ?? []
+          : {
+              add: req.body.keywords,
+            },
+      newBox: req.body.box,
+    })
+
+    void res.code(200).send({
+      id: newMail.id,
+      from: newMail.from,
+      to: newMail.to,
+      subject: newMail.subject,
+      date: newMail.date.toString(),
+      body: newMail.body,
+      flags: newMail.flags,
     })
   })
 
