@@ -3,6 +3,7 @@ import { type RouteShorthandOptions } from 'fastify'
 
 const getMailsOpts = {
   schema: {
+    tags: ['mails'],
     headers: authHeader,
     params: {
       type: 'object',
@@ -48,6 +49,7 @@ const getMailsOpts = {
 
 const getMailOpts = {
   schema: {
+    tags: ['mails'],
     headers: authHeader,
     params: {
       type: 'object',
@@ -88,6 +90,7 @@ const getMailOpts = {
 
 const postMailOpts = {
   schema: {
+    tags: ['mails'],
     headers: authHeader,
     body: {
       type: 'object',
@@ -124,6 +127,7 @@ const postMailOpts = {
 
 const patchMailOpts = {
   schema: {
+    tags: ['mails'],
     headers: authHeader,
     params: {
       type: 'object',

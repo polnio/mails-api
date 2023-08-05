@@ -1,7 +1,7 @@
 {
   "name": "mails-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple API for working with mails",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

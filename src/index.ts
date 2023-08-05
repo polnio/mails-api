@@ -36,7 +36,19 @@ app.setNotFoundHandler((req, reply) => {
     })
 })
 
-void app.register(swagger)
+void app.register(swagger, {
+  swagger: {
+    info: {
+      title: 'Mail API',
+      description: 'A simple API for working with mails',
+      version: '1.0.0',
+      contact: {
+        name: 'Po Co',
+        url: 'https://github.com/polnio',
+      },
+    },
+  },
+})
 void app.register(swaggerUI, {
   routePrefix: '/docs',
 })
