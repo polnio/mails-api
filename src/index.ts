@@ -1,4 +1,6 @@
 import Fastify from 'fastify'
+import swagger from '@fastify/swagger'
+import swaggerUI from '@fastify/swagger-ui'
 import router from './router'
 import Session from './models/Session'
 import { type JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts'
@@ -10,8 +12,6 @@ const app =
   >()
 
 app.addSchema(boxSchema)
-
-type App = typeof app
 
 app.setErrorHandler((err, _request, reply) => {
   const code = err.statusCode ?? 500
@@ -36,6 +36,11 @@ app.setNotFoundHandler((req, reply) => {
     })
 })
 
+void app.register(swagger)
+void app.register(swaggerUI, {
+  routePrefix: '/docs',
+})
+
 void app.register(router)
 
 try {
@@ -45,4 +50,4 @@ try {
   void Session.destroyAll().then(() => process.exit(1))
 }
 
-export type { App }
+export type App = typeof app
