@@ -8,6 +8,7 @@ const authHeader = {
 
 const authUnauthorizedResponse = {
   type: 'object',
+  additionalProperties: false,
   required: ['message'],
   properties: {
     message: { type: 'string' },

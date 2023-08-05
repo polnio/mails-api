@@ -1,8 +1,17 @@
 import Fastify from 'fastify'
 import router from './router'
 import Session from './models/Session'
+import { type JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts'
+import { boxSchema } from './shared/schemas'
 
-const app = Fastify()
+const app =
+  Fastify().withTypeProvider<
+    JsonSchemaToTsProvider<{ references: [typeof boxSchema] }>
+  >()
+
+app.addSchema(boxSchema)
+
+type App = typeof app
 
 app.setErrorHandler((err, _request, reply) => {
   const code = err.statusCode ?? 500
@@ -35,3 +44,5 @@ try {
   app.log.error(err)
   void Session.destroyAll().then(() => process.exit(1))
 }
+
+export type { App }
