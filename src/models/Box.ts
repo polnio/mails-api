@@ -1,28 +1,28 @@
 import { type MailBoxes } from 'imap'
-import Session from './Session'
+import type Session from './Session'
 
 type GetBoxesParams = {
-  sessionToken: string
+  session: Session
 }
 
 type GetBoxParams = {
-  sessionToken: string
+  session: Session
   name: string
 }
 
 type PostBoxParams = {
-  sessionToken: string
+  session: Session
   fullName: string
 }
 
 type PatchBoxParams = {
-  sessionToken: string
+  session: Session
   name: string
   newName?: string
 }
 
 type DeleteBoxParams = {
-  sessionToken: string
+  session: Session
   name: string
 }
 
@@ -78,12 +78,8 @@ class Box {
   }
 
   public static async getAll(params: GetBoxesParams): Promise<Box[]> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      return []
-    }
     return await new Promise((resolve, reject) => {
-      session.imap.getBoxes((err, boxes) => {
+      params.session.imap.getBoxes((err, boxes) => {
         if (err !== undefined) {
           reject(err)
         }
@@ -93,7 +89,7 @@ class Box {
   }
 
   public static async get(params: GetBoxParams): Promise<Box | undefined> {
-    const boxes = await Box.getAll({ sessionToken: params.sessionToken })
+    const boxes = await Box.getAll({ session: params.session })
     for (const box of boxes) {
       const maybeBox = box.findBox(params.name)
       if (maybeBox !== undefined) {
@@ -104,11 +100,7 @@ class Box {
   }
 
   public static async create(params: PostBoxParams): Promise<void> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      return
-    }
-    session.imap.addBox(params.fullName, (err) => {
+    params.session.imap.addBox(params.fullName, (err) => {
       if (err !== undefined) {
         throw err
       }
@@ -116,12 +108,8 @@ class Box {
   }
 
   public static async update(params: PatchBoxParams): Promise<void> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      return
-    }
     if (params.newName !== undefined) {
-      session.imap.renameBox(params.name, params.newName, (err) => {
+      params.session.imap.renameBox(params.name, params.newName, (err) => {
         if (err !== undefined) {
           throw err
         }
@@ -130,11 +118,7 @@ class Box {
   }
 
   public static async delete(params: DeleteBoxParams): Promise<void> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      return
-    }
-    session.imap.delBox(params.name, (err) => {
+    params.session.imap.delBox(params.name, (err) => {
       if (err !== undefined) {
         throw err
       }

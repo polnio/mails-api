@@ -13,46 +13,41 @@ import { type App } from '@/index'
 const boxes = ((app: App, _opts, done) => {
   // @ts-expect-error 2615
   app.get('/boxes', getBoxesOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
-    const boxes = await Box.getAll({
-      sessionToken: req.headers.authorization,
-    })
+    const boxes = await Box.getAll({ session })
     // @ts-expect-error 2345
     void res.code(200).header('Content-Type', 'application/json').send(boxes)
   })
 
   app.post('/boxes', postBoxOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
-    await Box.create({
-      sessionToken: req.headers.authorization,
-      fullName: req.body.fullName,
-    })
+    await Box.create({ session, fullName: req.body.fullName })
     void res.code(204).send()
   })
 
   // @ts-expect-error 2615
   app.get('/boxes/:name', getBoxOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     const name = decodeURIComponent(req.params.name)
-    const box = await Box.get({
-      sessionToken: req.headers.authorization,
-      name,
-    })
+    const box = await Box.get({ session, name })
     console.log(box)
     if (box === undefined) {
       void res.code(404).send({
@@ -65,25 +60,16 @@ const boxes = ((app: App, _opts, done) => {
   })
 
   app.patch('/boxes/:name', patchBoxOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     const name = decodeURIComponent(req.params.name)
-    const box = await Box.get({
-      sessionToken: req.headers.authorization,
-      name,
-    })
-    if (box === undefined) {
-      void res.code(404).send({
-        message: 'Box not found',
-      })
-      return
-    }
     await Box.update({
-      sessionToken: req.headers.authorization,
+      session,
       name,
       newName: req.body.fullName,
     })
@@ -91,27 +77,15 @@ const boxes = ((app: App, _opts, done) => {
   })
 
   app.delete('/boxes/:name', deleteBoxOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     const name = decodeURIComponent(req.params.name)
-    const box = await Box.get({
-      sessionToken: req.headers.authorization,
-      name,
-    })
-    if (box === undefined) {
-      void res.code(404).send({
-        message: 'Box not found',
-      })
-      return
-    }
-    await Box.delete({
-      sessionToken: req.headers.authorization,
-      name,
-    })
+    await Box.delete({ session, name })
     void res.code(204).send()
   })
 

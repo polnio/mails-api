@@ -11,7 +11,8 @@ import Session from '@/models/Session'
 
 const mails = ((app, _opts, done) => {
   app.get('/mails/:box?', getMailsOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
@@ -25,7 +26,7 @@ const mails = ((app, _opts, done) => {
     const query = transpile(req.query.query ?? '')
 
     const mails = await Mail.getAll({
-      sessionToken: req.headers.authorization,
+      session,
       box: req.params.box,
       criteria: query,
       page: req.query.page,
@@ -54,14 +55,15 @@ const mails = ((app, _opts, done) => {
   })
 
   app.get('/mails/:box/:id', getMailOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     const mail = await Mail.get({
-      sessionToken: req.headers.authorization,
+      session,
       box: req.params.box,
       id: req.params.id,
       markSeen: req.query.markSeen,
@@ -79,14 +81,15 @@ const mails = ((app, _opts, done) => {
   })
 
   app.post('/mails', postMailOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     await Mail.create({
-      sessionToken: req.headers.authorization,
+      session,
       from: req.body.from,
       to: req.body.to,
       subject: req.body.subject,
@@ -97,14 +100,15 @@ const mails = ((app, _opts, done) => {
   })
 
   app.patch('/mails/:box/:id', patchMailOpts, async (req, res) => {
-    if (!(await Session.has(req.headers.authorization))) {
+    const session = await Session.get(req.headers.authorization)
+    if (session === undefined) {
       void res.code(401).send({
         message: 'Invalid token',
       })
       return
     }
     const newMail = await Mail.update({
-      sessionToken: req.headers.authorization,
+      session,
       box: req.params.box,
       id: req.params.id,
       flags:

@@ -1,7 +1,7 @@
 import { parseHeader } from 'imap'
 import { MailParser } from 'mailparser'
 import { z } from 'zod'
-import Session from './Session'
+import type Session from './Session'
 import { type Stream } from 'stream'
 import {
   parseHeaderValueToArray,
@@ -35,7 +35,7 @@ type MailConstructorParams = {
 type Criteria = Array<string | Criteria>
 
 type GetAllMailParams = {
-  sessionToken: string
+  session: Session
   box?: string
   page?: number
   perPage?: number
@@ -43,7 +43,7 @@ type GetAllMailParams = {
 }
 
 type GetMailParams = {
-  sessionToken: string
+  session: Session
   box?: string
   id: number
   markSeen?: boolean
@@ -51,7 +51,7 @@ type GetMailParams = {
 }
 
 type PostMailParams = {
-  sessionToken: string
+  session: Session
   from: string
   to: string[]
   subject: string
@@ -67,7 +67,7 @@ type UpdateArray<T> =
     }
 
 type UpdateMailParams = {
-  sessionToken: string
+  session: Session
   box?: string
   id: number
 
@@ -126,24 +126,20 @@ class Mail {
   }
 
   public static async getAll(params: GetAllMailParams): Promise<Mail[]> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      return []
-    }
     return await new Promise((resolve, reject) => {
-      session.imap.openBox(params.box ?? 'INBOX', true, (err) => {
+      params.session.imap.openBox(params.box ?? 'INBOX', true, (err) => {
         if (err !== undefined) {
           reject(err)
         }
 
-        session.imap.search(params.criteria ?? ['ALL'], (_, uids) => {
+        params.session.imap.search(params.criteria ?? ['ALL'], (_, uids) => {
           const perPage = params.perPage ?? Infinity
           const page = params.page ?? 1
           const filteredUids =
             uids.length > perPage
               ? uids.slice((page - 1) * perPage, page * perPage)
               : uids
-          const f = session.imap.fetch(filteredUids, {
+          const f = params.session.imap.fetch(filteredUids, {
             bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
             markSeen: false,
             // struct: true,
@@ -201,17 +197,13 @@ class Mail {
   }
 
   public static async get(params: GetMailParams): Promise<Mail> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      throw new Error('Invalid token')
-    }
     return await new Promise((resolve, reject) => {
-      session.imap.openBox(params.box ?? 'INBOX', true, (err) => {
+      params.session.imap.openBox(params.box ?? 'INBOX', true, (err) => {
         if (err !== undefined) {
           reject(err)
           return
         }
-        const f = session.imap.fetch([params.id], {
+        const f = params.session.imap.fetch([params.id], {
           // bodies: ['HEADER.FIELDS (FROM TO SUBJECT DATE)', 'TEXT'],
           bodies: '',
           markSeen: params.markSeen ?? false,
@@ -315,7 +307,7 @@ class Mail {
                 flags: attributes.flags,
               }),
             )
-            session.imap.closeBox((err) => {
+            params.session.imap.closeBox((err) => {
               if (err !== undefined) {
                 reject(err)
               }
@@ -327,20 +319,16 @@ class Mail {
   }
 
   public static async create(params: PostMailParams): Promise<void> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      throw new Error('Invalid token')
-    }
     console.log(params)
     if (params.format === 'html') {
-      await session.smtp.sendMail({
+      await params.session.smtp.sendMail({
         from: params.from,
         to: params.to,
         subject: params.subject,
         html: params.body,
       })
     } else {
-      await session.smtp.sendMail({
+      await params.session.smtp.sendMail({
         from: params.from,
         to: params.to,
         subject: params.subject,
@@ -350,18 +338,14 @@ class Mail {
   }
 
   public static async update(params: UpdateMailParams): Promise<Mail> {
-    const session = await Session.get(params.sessionToken)
-    if (session === undefined) {
-      throw new Error('Invalid token')
-    }
     const mail = await Mail.get({
-      sessionToken: params.sessionToken,
+      session: params.session,
       box: params.box ?? 'INBOX',
       id: params.id,
     })
 
     return await new Promise((resolve, reject) => {
-      session.imap.openBox(params.box ?? 'INBOX', false, (err) => {
+      params.session.imap.openBox(params.box ?? 'INBOX', false, (err) => {
         if (err !== undefined) {
           reject(err)
           return
@@ -372,13 +356,13 @@ class Mail {
             flags = params.flags
             if (flags.length === 0) {
               console.log(params.id, mail.flags)
-              session.imap.delFlags(params.id, mail.flags, (err) => {
+              params.session.imap.delFlags(params.id, mail.flags, (err) => {
                 if (err !== undefined) {
                   reject(err)
                 }
               })
             } else {
-              session.imap.setFlags(params.id, params.flags, (err) => {
+              params.session.imap.setFlags(params.id, params.flags, (err) => {
                 if (err !== undefined) {
                   reject(err)
                 }
@@ -390,7 +374,7 @@ class Mail {
                 (f) => `\\${capitalize(f)}`,
               )
               flags = Array.from(new Set(flags.concat(parsedFlags)))
-              session.imap.addFlags(params.id, parsedFlags, (err) => {
+              params.session.imap.addFlags(params.id, parsedFlags, (err) => {
                 if (err !== undefined) {
                   reject(err)
                 }
@@ -400,24 +384,32 @@ class Mail {
               flags = flags.filter((f) =>
                 (params.flags as { add: string[] }).add.includes(f),
               )
-              session.imap.delFlags(params.id, params.flags.remove, (err) => {
-                if (err !== undefined) {
-                  reject(err)
-                }
-              })
+              params.session.imap.delFlags(
+                params.id,
+                params.flags.remove,
+                (err) => {
+                  if (err !== undefined) {
+                    reject(err)
+                  }
+                },
+              )
             }
           }
         }
         if (params.keywords !== undefined) {
           if (Array.isArray(params.keywords)) {
-            session.imap.setKeywords(params.id, params.keywords, (err) => {
-              if (err !== undefined) {
-                reject(err)
-              }
-            })
+            params.session.imap.setKeywords(
+              params.id,
+              params.keywords,
+              (err) => {
+                if (err !== undefined) {
+                  reject(err)
+                }
+              },
+            )
           } else {
             if (params.keywords.add !== undefined) {
-              session.imap.addKeywords(
+              params.session.imap.addKeywords(
                 params.id,
                 params.keywords.add,
                 (err) => {
@@ -428,7 +420,7 @@ class Mail {
               )
             }
             if (params.keywords.remove !== undefined) {
-              session.imap.delKeywords(
+              params.session.imap.delKeywords(
                 params.id,
                 params.keywords.remove,
                 (err) => {
@@ -448,7 +440,7 @@ class Mail {
           switch (params.newBox.action) {
             case 'copy':
               for (const location of locations) {
-                session.imap.copy(params.id, location, (err) => {
+                params.session.imap.copy(params.id, location, (err) => {
                   if (err !== undefined) {
                     reject(err)
                   }
@@ -462,11 +454,15 @@ class Mail {
                   'Mail can be move at only one location at a time',
                 )
               }
-              session.imap.move(params.id, params.newBox.location, (err) => {
-                if (err !== undefined) {
-                  reject(err)
-                }
-              })
+              params.session.imap.move(
+                params.id,
+                params.newBox.location,
+                (err) => {
+                  if (err !== undefined) {
+                    reject(err)
+                  }
+                },
+              )
               break
           }
         }
