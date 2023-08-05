@@ -3,6 +3,7 @@ import { type RouteShorthandOptions } from 'fastify'
 
 const getBoxesOpts = {
   schema: {
+    tags: ['boxes'],
     headers: authHeader,
     response: {
       200: {
@@ -18,6 +19,7 @@ const getBoxesOpts = {
 
 const getBoxOpts = {
   schema: {
+    tags: ['boxes'],
     headers: authHeader,
     params: {
       type: 'object',
@@ -38,6 +40,7 @@ const getBoxOpts = {
 
 const postBoxOpts = {
   schema: {
+    tags: ['boxes'],
     headers: authHeader,
     body: {
       type: 'object',
@@ -57,6 +60,7 @@ const postBoxOpts = {
 
 const patchBoxOpts = {
   schema: {
+    tags: ['boxes'],
     headers: authHeader,
     params: {
       type: 'object',
@@ -82,6 +86,7 @@ const patchBoxOpts = {
 
 const deleteBoxOpts = {
   schema: {
+    tags: ['boxes'],
     headers: authHeader,
     params: {
       type: 'object',

@@ -14,12 +14,4 @@ const boxSchema = {
   },
 } as const
 
-const sharedSchema = {
-  $id: 'shared-schema',
-  definitions: {
-    box: boxSchema,
-  },
-} as const
-
-export default sharedSchema
 export { boxSchema }

@@ -1,4 +1,6 @@
 import Fastify from 'fastify'
+import swagger from '@fastify/swagger'
+import swaggerUI from '@fastify/swagger-ui'
 import router from './router'
 import Session from './models/Session'
 import { type JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts'
@@ -10,8 +12,6 @@ const app =
   >()
 
 app.addSchema(boxSchema)
-
-type App = typeof app
 
 app.setErrorHandler((err, _request, reply) => {
   const code = err.statusCode ?? 500
@@ -36,6 +36,23 @@ app.setNotFoundHandler((req, reply) => {
     })
 })
 
+void app.register(swagger, {
+  swagger: {
+    info: {
+      title: 'Mail API',
+      description: 'A simple API for working with mails',
+      version: '1.0.0',
+      contact: {
+        name: 'Po Co',
+        url: 'https://github.com/polnio',
+      },
+    },
+  },
+})
+void app.register(swaggerUI, {
+  routePrefix: '/docs',
+})
+
 void app.register(router)
 
 try {
@@ -45,4 +62,4 @@ try {
   void Session.destroyAll().then(() => process.exit(1))
 }
 
-export type { App }
+export type App = typeof app

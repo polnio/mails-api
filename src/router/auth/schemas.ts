@@ -3,6 +3,7 @@ import { type RouteShorthandOptions } from 'fastify'
 
 const loginOpts = {
   schema: {
+    tags: ['auth'],
     body: {
       type: 'object',
       required: ['email', 'password', 'imap', 'smtp'],
@@ -42,6 +43,7 @@ const loginOpts = {
 
 const logoutOpts = {
   schema: {
+    tags: ['auth'],
     headers: authHeader,
     response: {
       204: {},
