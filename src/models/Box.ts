@@ -10,6 +10,22 @@ type GetBoxParams = {
   name: string
 }
 
+type PostBoxParams = {
+  sessionToken: string
+  fullName: string
+}
+
+type PatchBoxParams = {
+  sessionToken: string
+  name: string
+  newName?: string
+}
+
+type DeleteBoxParams = {
+  sessionToken: string
+  name: string
+}
+
 type BoxConstructorParams = {
   name: string
   flags?: string[]
@@ -85,6 +101,44 @@ class Box {
       }
     }
     return undefined
+  }
+
+  public static async create(params: PostBoxParams): Promise<void> {
+    const session = await Session.get(params.sessionToken)
+    if (session === undefined) {
+      return
+    }
+    session.imap.addBox(params.fullName, (err) => {
+      if (err !== undefined) {
+        throw err
+      }
+    })
+  }
+
+  public static async update(params: PatchBoxParams): Promise<void> {
+    const session = await Session.get(params.sessionToken)
+    if (session === undefined) {
+      return
+    }
+    if (params.newName !== undefined) {
+      session.imap.renameBox(params.name, params.newName, (err) => {
+        if (err !== undefined) {
+          throw err
+        }
+      })
+    }
+  }
+
+  public static async delete(params: DeleteBoxParams): Promise<void> {
+    const session = await Session.get(params.sessionToken)
+    if (session === undefined) {
+      return
+    }
+    session.imap.delBox(params.name, (err) => {
+      if (err !== undefined) {
+        throw err
+      }
+    })
   }
 
   private findBox(name: string): Box | undefined {
